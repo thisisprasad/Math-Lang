@@ -4,6 +4,7 @@
 #include "stdafx.h"
 
 //	#include<bits/stdc++.h>
+#include<conio.h>
 #include<iostream>
 #include <vector>
 #include <map>
@@ -18,6 +19,21 @@ const char endOfStatement = ';';
 
 //	Set of commands the parser must identify.
 string command[] = { "status", "print", "end" };
+
+void debug(string dbg, bool flag = false) {
+	cout << dbg << ln;
+	if (flag) cin.get();
+}
+
+void issueError(string err) {
+	cout << "======================================================" << endl;
+	cerr << err << endl;
+	cout << "======================================================" << endl;
+
+	char ch;
+	getch();
+	exit(0);
+}
 
 /*
 	This is an interface.
@@ -56,7 +72,10 @@ public:
 	}
 
 	/* Empty implementation */
-	vector<pair<string, double> > getAllIdentifiers(string pattern) {}
+	vector<pair<string, double> > getAllIdentifiers(string pattern) {
+		vector<pair<string, double> > iList;
+		return iList;
+	}
 
 	vector<pair<string, double> > getAllIdentifiersForValue(double value) {
 		vector<pair<string, double> > iList;
@@ -109,14 +128,6 @@ private:
 	void insertIdentifierNode(const IdentifierNode);
 	void insertIdentifierNode(const string &, const double &);
 
-	void issueError(string err) {
-		cout << "======================================================" << endl;
-		cerr << err << endl;
-		cout << "======================================================" << endl;
-
-		exit(1);
-	}
-
 public:
 	void parseStatement();	//	Entry point of the parser.
 	friend ostream& operator<< (ostream &, const Parser &);
@@ -131,7 +142,7 @@ void Parser::insertIdentifierNode(const IdentifierNode idNode) {
 }
 
 double Parser::findValue(const string &identifier) {
-
+	return 0.0;
 }
 
 void Parser::readLValue(string &lValue) {
@@ -139,7 +150,31 @@ void Parser::readLValue(string &lValue) {
 }
 
 double Parser::factor() {
+	double var, minus = 1.0;
+	static string lValue;	//	Why like this.
+	cin >> runner;
 
+	while (runner == '+' || runner == '-') {
+		if (runner == '-') cin >> runner;
+	}
+
+	if ((runner >= '0' && runner <= '9') || runner == '.') {
+		cin.putback(runner);
+		cin >> var >> runner;
+	}
+	else if (runner == '(') {
+		var = expression();
+		if (runner == ')')
+			cin >> runner;
+		else issueError("Missing matching parenthesis");
+	}
+	else {
+		readLValue(lValue);
+		while (runner == spaceChar) cin >> runner;
+		var = findValue(lValue);
+	}
+
+	return minus*var;
 }
 
 double Parser::term() {
@@ -161,6 +196,7 @@ double Parser::term() {
 }
 
 double Parser::expression() {
+	debug("Inside expression");
 	double termVal = term();
 	while (1) {
 		switch (runner) {
@@ -179,6 +215,7 @@ double Parser::expression() {
 }
 
 void Parser::parseStatement() {
+	debug("parsing the statement");
 	string lValue = "";
 	double expVal;
 	cout << "$: ";
@@ -215,13 +252,14 @@ void Parser::parseStatement() {
 int main() {
 	//	Start the interpreter!
 	cout << "Hello world!!" << endl;
-	cout << "Press any key to continue:" << ln;
-	cin.get();
 
 	Parser parser;
 	while (1) {
 		parser.parseStatement();
 	}
+
+	cin.get();
+	return 0;
 }
 
 
