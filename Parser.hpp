@@ -1,26 +1,22 @@
-// Recursive_Descent_Parser.cpp : Defines the entry point for the console application.
-//
-
-#include "stdafx.h"
-
-//	#include<bits/stdc++.h>
-#include<conio.h>
-#include<iostream>
-#include <vector>
-#include <map>
-#include <unordered_map>
-#include <bitset>
-#include <list>
-#include <algorithm>
-#define ln "\n"
 using namespace std;
 const char spaceChar = ' ';
 const char endOfStatement = ';';
 
+bool debugSwitch = false;	//	This acts as switch to print the debug statements
+
 //	Set of commands the parser must identify.
 string command[] = { "status", "print", "end" };
 
+bool isAlphabet(char ch){
+	return ((ch>='a' and ch<='z') or (ch>='A' and ch<='Z'));
+}
+
+bool isDigit(char ch){
+	return (ch>='0' and ch<='9');
+}
+
 void debug(string dbg, bool flag = false) {
+	if(!debugSwitch) return ;
 	cout << dbg << ln;
 	if (flag) cin.get();
 }
@@ -41,12 +37,12 @@ void issueError(string err) {
 class CompilerTable {
 public:
 	virtual vector<pair<string, double> > getAllIdentifiers() = 0;
-	
+
 	/* Searches for a pattern in the Indentifiers */
 	virtual vector<pair<string, double> > getAllIdentifiers(string pattern) = 0;
 
 	virtual double getIdentifierValue(string identifier) = 0;
-	
+
 	virtual vector<pair<string, double> > getAllIdentifiersForValue(double value) = 0;
 
 };
@@ -58,6 +54,7 @@ public:
 class IdentifierLookupTable : public CompilerTable {
 
 private:
+	friend class Parser;
 	unordered_map<string, double> table;
 
 public:
@@ -71,7 +68,9 @@ public:
 		return iList;
 	}
 
-	/* Empty implementation */
+	/**
+		Empty implementation
+	*/
 	vector<pair<string, double> > getAllIdentifiers(string pattern) {
 		vector<pair<string, double> > iList;
 		return iList;
@@ -87,15 +86,30 @@ public:
 	}
 
 	double getIdentifierValue(string identifier) {
+		debug("getIdentifierValue");
 		for (auto it : table) {
-			if (it.first == identifier) return it.second;
+			if (it.first == identifier){
+				debug("it.first: " + it.first + ", it.second: " + to_string(it.second));
+				return it.second;
+			}
 		}
 
-		//	issueError("Internal parser problem");	
+		issueError("No such variable as " + identifier);
 	}
 
 	void insertIdentifierNode(string identifier, double value) {
+		debug("IdentifierLookUpTable::insertIdentifierNode");
 		table[identifier] = value;
+		debug("table[identifier]: " + identifier + ", " + to_string(value));
+	}
+
+	/**
+		Print the lookup table.
+	*/
+	void printTable() const {
+		for(auto it: table){
+			cout<<"identifier: "<<it.first<<", Value: "<<it.second<<ln;
+		}
 	}
 };
 
@@ -133,8 +147,19 @@ public:
 	friend ostream& operator<< (ostream &, const Parser &);
 };
 
-void Parser::insertIdentifierNode(const string &identifier, const double& value) {
+ostream& operator<< (ostream & out, const Parser &parser) {
+	debug("print the lookup table");
+	parser.lookup.printTable();
+//	while(it != parser.lookup.table.end()){
+//		out<<"identifier: "<<it->first<<", Value: "<<it->second<<ln;
+//		it++;
+//	}
+	return out;
+}
 
+void Parser::insertIdentifierNode(const string &identifier, const double& value) {
+	debug("inside insertIdentifierNode(key, val");
+	this->lookup.insertIdentifierNode(identifier, value);
 }
 
 void Parser::insertIdentifierNode(const IdentifierNode idNode) {
@@ -142,23 +167,38 @@ void Parser::insertIdentifierNode(const IdentifierNode idNode) {
 }
 
 double Parser::findValue(const string &identifier) {
-	return 0.0;
+	debug("findByValue() not implemented");
+	return this->lookup.getIdentifierValue(identifier);
 }
 
 void Parser::readLValue(string &lValue) {
 
+	int i = 0;
+	while(runner == spaceChar)
+		cin>>runner;
+
+	if(isAlphabet(runner)){
+		while(isAlphabet(runner) or isDigit(runner)){
+			lValue += runner;
+			cin.get(runner);	//	get next character from the console.
+		}
+	}
+	else{
+		issueError("Invalid lvalue identifier");
+	}
 }
 
 double Parser::factor() {
 	double var, minus = 1.0;
-	static string lValue;	//	Why like this.
+//	static string lValue;	//	Why like this.
+	string lValue = "";
 	cin >> runner;
 
-	while (runner == '+' || runner == '-') {
+	while (runner == '+' or runner == '-') {
 		if (runner == '-') cin >> runner;
 	}
 
-	if ((runner >= '0' && runner <= '9') || runner == '.') {
+	if ((runner >= '0' and runner <= '9') || runner == '.') {
 		cin.putback(runner);
 		cin >> var >> runner;
 	}
@@ -169,6 +209,7 @@ double Parser::factor() {
 		else issueError("Missing matching parenthesis");
 	}
 	else {
+		lValue = "";
 		readLValue(lValue);
 		while (runner == spaceChar) cin >> runner;
 		var = findValue(lValue);
@@ -178,6 +219,7 @@ double Parser::factor() {
 }
 
 double Parser::term() {
+	debug("Inside term");
 	double fVal = factor();
 	while (1) {
 		switch (runner) {
@@ -203,7 +245,7 @@ double Parser::expression() {
 		case '+':
 			termVal += term();
 			break;
-			
+
 		case '-':
 			termVal -= term();
 			break;
@@ -221,11 +263,13 @@ void Parser::parseStatement() {
 	cout << "$: ";
 	cin >> runner;
 	readLValue(lValue);
+	debug("lValue: " + lValue);
 
 	if (lValue == "status") {
-		cout << this;
+		cout << *this;
 	}
 	else if (lValue == "print") {
+		lValue = "";	//	This might solve the problem
 		readLValue(lValue);	//	print the variable after the print command.
 		cout << lValue << ": " << findValue(lValue) << ln;
 	}
@@ -233,8 +277,11 @@ void Parser::parseStatement() {
 		exit(1);
 	}
 	else {
-		while (runner == spaceChar) cin >> runner;
-		
+		while (runner == spaceChar){
+			cin >> runner;
+			cout<<"runner: "<<runner<<ln;
+		}
+
 		if (runner == '=') {
 			expVal = expression();
 			if (runner != endOfStatement) {
@@ -247,19 +294,4 @@ void Parser::parseStatement() {
 		}
 	}
 }
-
-
-int main() {
-	//	Start the interpreter!
-	cout << "Hello world!!" << endl;
-
-	Parser parser;
-	while (1) {
-		parser.parseStatement();
-	}
-
-	cin.get();
-	return 0;
-}
-
 
